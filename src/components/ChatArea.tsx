@@ -7,6 +7,9 @@ import ChatInput from './ChatInput'
 
 interface ChatAreaProps {
   document: Document | null
+  activeConversationId: number | null
+  restoredMessages: Message[]
+  onConversationCreated: (id: number) => void
 }
 
 const SUGGESTIONS = [
@@ -16,12 +19,20 @@ const SUGGESTIONS = [
   'List any important dates or numbers',
 ]
 
-export default function ChatArea({ document }: ChatAreaProps) {
+export default function ChatArea({ document, activeConversationId, restoredMessages, onConversationCreated }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [conversationId, setConversationId] = useState<string | undefined>()
+  const [conversationId, setConversationId] = useState<number | undefined>()
   const [streaming, setStreaming] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevDocId = useRef<number | null>(null)
+
+  // Restore past conversation when selected from sidebar
+  useEffect(() => {
+    if (document && restoredMessages.length > 0) {
+      setMessages(restoredMessages)
+      setConversationId(activeConversationId ?? undefined)
+    }
+  }, [document, restoredMessages, activeConversationId])
 
   // Reset chat when document changes
   useEffect(() => {
@@ -67,6 +78,7 @@ export default function ChatArea({ document }: ChatAreaProps) {
         document.id,
         question,
         conversationId,
+     
         // onToken — append each word as it arrives
         (token) => {
           fullContent += token
@@ -74,9 +86,13 @@ export default function ChatArea({ document }: ChatAreaProps) {
             m.id === assistantId ? { ...m, content: fullContent } : m
           ))
         },
+        // onMeta — save or initialize the conversation session
+        (meta) => {
+          setConversationId(meta.conversation_id)
+          onConversationCreated(meta.conversation_id)
+        },
         // onDone — mark streaming complete
-        (convId) => {
-          setConversationId(convId || conversationId)
+        () => {
           setMessages(prev => prev.map(m =>
             m.id === assistantId ? { ...m, streaming: false } : m
           ))
@@ -215,7 +231,7 @@ export default function ChatArea({ document }: ChatAreaProps) {
       <ChatInput
         onSend={sendMessage}
         disabled={streaming}
-        placeholder={`Ask about "${document.original_name.replace('.pdf', '')}"...`}
+        placeholder={`Ask about "${document.original_name.replace(/\.[^.]+$/, '')}"...`}
       />
     </div>
   )
