@@ -21,6 +21,7 @@ function AppInner() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null)
   const [restoredMessages, setRestoredMessages] = useState<Message[]>([])
   const [theme, setTheme] = useState<Theme>('dark')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -84,46 +85,126 @@ function AppInner() {
   if (!user) return <AuthPage />
 
   return (
-    <>
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
+  <>
+    <style>{`
+      @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0; }
+      }
+      body::before {
+        content: ''; position: fixed;
+        top: -30%; left: -10%; width: 60%; height: 60%;
+        background: radial-gradient(ellipse, rgba(184,169,245,0.06) 0%, transparent 70%);
+        pointer-events: none; z-index: 0;
+      }
+
+      /* Mobile responsive */
+      .app-layout { display: flex; height: 100vh; overflow: hidden; position: relative; z-index: 1; }
+      .main-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-base); min-width: 0; }
+
+      /* Mobile — sidebar hidden by default, chat takes full width */
+      @media (max-width: 768px) {
+        .sidebar-wrapper {
+          position: fixed;
+          left: -280px;
+          top: 0;
+          height: 100vh;
+          z-index: 100;
+          transition: left 0.3s ease;
+          box-shadow: 4px 0 20px rgba(0,0,0,0.5);
         }
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0; }
+        .sidebar-wrapper.open {
+          left: 0;
         }
-        body::before {
-          content: ''; position: fixed;
-          top: -30%; left: -10%; width: 60%; height: 60%;
-          background: radial-gradient(ellipse, rgba(184,169,245,0.06) 0%, transparent 70%);
-          pointer-events: none; z-index: 0;
+        .sidebar-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          z-index: 99;
         }
-      `}</style>
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+        .sidebar-overlay.open {
+          display: block;
+        }
+        .mobile-menu-btn {
+          display: flex !important;
+        }
+      }
+      @media (min-width: 769px) {
+        .sidebar-wrapper { position: relative; left: 0 !important; }
+        .mobile-menu-btn { display: none !important; }
+        .sidebar-overlay { display: none !important; }
+      }
+    `}</style>
+
+    <div className="app-layout">
+      {/* Mobile overlay — clicking it closes sidebar */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* Sidebar */}
+      <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           documents={documents}
           activeDoc={activeDoc}
           activeConversationId={activeConversationId}
-          onSelect={doc => { setActiveDoc(doc); setActiveConversationId(null); setRestoredMessages([]) }}
+          onSelect={doc => { setActiveDoc(doc); setActiveConversationId(null); setRestoredMessages([]); setSidebarOpen(false) }}
           onUpload={handleUpload}
           onDelete={handleDelete}
-          onSelectConversation={handleSelectConversation}
+          onSelectConversation={conv => { handleSelectConversation(conv); setSidebarOpen(false) }}
           theme={theme}
           onThemeChange={setTheme}
         />
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-base)', minWidth: 0 }}>
-          <ChatArea
-            document={activeDoc}
-            activeConversationId={activeConversationId}
-            restoredMessages={restoredMessages}
-            onConversationCreated={id => setActiveConversationId(id)}
-          />
-        </main>
       </div>
-    </>
-  )
+
+      {/* Main chat area */}
+      <main className="main-area">
+        {/* Mobile top bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '10px 16px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--bg-surface)',
+        }}>
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setSidebarOpen(prev => !prev)}
+            style={{
+              display: 'none',
+              background: 'none',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: '6px 10px',
+              color: 'var(--lavender)',
+              cursor: 'pointer',
+              fontSize: 16,
+            }}
+          >
+            ☰
+          </button>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--lavender)' }}>
+            Docu<span style={{ color: 'var(--baby-purple)' }}>Ask</span>
+          </span>
+        </div>
+
+        <ChatArea
+          document={activeDoc}
+          activeConversationId={activeConversationId}
+          restoredMessages={restoredMessages}
+          onConversationCreated={id => setActiveConversationId(id)}
+        />
+      </main>
+    </div>
+  </>
+)
 }
 
 export default function App() {
