@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import axios from 'axios'
+import { api } from './api/client'
 
-const BASE = 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 interface AuthUser {
   username: string
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     form.append('username', email)
     form.append('password', password)
 
-    const { data } = await axios.post(`${BASE}/api/auth/login`, form, {
+    const { data } = await api.post('/api/auth/login', form, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
 
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const register = async (email: string, username: string, password: string) => {
-    const { data } = await axios.post(`${BASE}/api/auth/register`, { email, username, password })
+    const { data } = await api.post('/api/auth/register', { email, username, password })
     const authUser = { username: data.username, email: data.email, token: data.access_token }
     setUser(authUser)
     localStorage.setItem('docuask_user', JSON.stringify(authUser))
